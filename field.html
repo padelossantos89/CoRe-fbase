@@ -170,6 +170,7 @@ const firebaseConfig = {
 if(!firebase.apps.length) firebase.initializeApp(firebaseConfig);
 const auth = firebase.auth();
 const fdb = firebase.firestore();
+const authReady_ = new Promise(resolve => { const unsub = auth.onAuthStateChanged(u => { unsub(); resolve(u); }); });
 const BRANCHES = {
   "pani-an":   { name:"Pani-an Branch Office",   email:"ileco3.pao@gmail.com" },
   "sara":      { name:"Sara Branch Office",      email:"ileco3.sao@gmail.com" },
@@ -309,6 +310,7 @@ function applyDurations(rows){
 
 
 async function fetchRows(key){
+  await authReady_;
   const snap = await fdb.collection('complaints')
     .where('office', '==', BRANCHES[key].name)
     .orderBy('createdAt', 'asc')
