@@ -287,6 +287,7 @@ const firebaseConfig = {
 firebase.initializeApp(firebaseConfig);
 const auth = firebase.auth();
 const fdb = firebase.firestore();
+const authReady_ = new Promise(resolve => { const unsub = auth.onAuthStateChanged(u => { unsub(); resolve(u); }); });
 function usernameToEmail_(username){ return username.trim().toLowerCase() + '@ileco3.local'; }
 
 const f = id => document.getElementById(id);
@@ -315,6 +316,7 @@ async function logActivity(username, role, action, details){
 
 /* ---------- users: list / create / update / delete ---------- */
 async function listUsers(){
+  await authReady_;
   const snap = await fdb.collection('users').orderBy('createdAt').get();
   return snap.docs.map(doc => {
     const u = doc.data();
@@ -327,6 +329,7 @@ async function listUsers(){
 // throwaway Firebase app instance creates the account without touching the
 // admin's real session at all.
 async function createUser(username, password, role){
+  await authReady_;
   try{
     const secondary = firebase.apps.find(a=>a.name==='Secondary') || firebase.initializeApp(firebaseConfig, 'Secondary');
     const secondaryAuth = firebase.auth(secondary);
@@ -346,6 +349,7 @@ async function createUser(username, password, role){
 }
 
 async function updateUser(uid, username, opts){
+  await authReady_;
   if(opts.newRole){
     const doc = await fdb.collection('users').doc(uid).get();
     if(doc.exists && doc.data().role==='admin' && opts.newRole!=='admin'){
@@ -363,6 +367,7 @@ async function updateUser(uid, username, opts){
 // ever see it. This removes the account's profile, which blocks their login
 // immediately (see login.js), without touching or exposing any password.
 async function deactivateUser(uid, username, role){
+  await authReady_;
   if(role==='admin'){
     const admins = await fdb.collection('users').where('role','==','admin').get();
     if(admins.size <= 1) return { ok:false, error:'Cannot remove the last remaining admin account.' };
@@ -464,6 +469,7 @@ document.getElementById('create-user-form').addEventListener('submit', async (e)
 
 /* ---------- activity log ---------- */
 async function listActivity(){
+  await authReady_;
   const snap = await fdb.collection('activityLog').orderBy('createdAt', 'desc').limit(1000).get();
   return snap.docs.map(doc => {
     const a = doc.data();
@@ -666,6 +672,7 @@ function showBox(id, msg){
 }
 
 async function fetchOffice(o){
+  await authReady_;
   const snap = await fdb.collection('complaints').where('office', '==', o.name).orderBy('createdAt', 'asc').get();
   const rows = snap.docs.map((doc, idx) => Object.assign({ "No": idx+1 }, doc.data(), { _office: o.name }));
   const fresh = applyDurations(rows);
