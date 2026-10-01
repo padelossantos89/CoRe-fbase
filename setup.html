@@ -109,19 +109,23 @@ function usernameToEmail_(username){ return username.trim().toLowerCase() + '@il
 
 /* Whether an admin account already exists. Checked fresh every time this
    page loads — never cached — so a stale local flag can't reopen setup. */
+// Reads a single public true/false flag (safe for anyone, even signed out,
+// to read — see firestore.rules) instead of querying the users collection
+// directly, which requires being logged in and would fail here since nobody
+// is logged in yet at this point.
 async function hasAnyAccounts(){
-  const snap = await fdb.collection('users').limit(1).get();
-  return !snap.empty;
+  const doc = await fdb.collection('meta').doc('status').get();
+  return !!(doc.exists && doc.data().hasUsers);
 }
 
 async function createFirstAdmin(username, password){
-  const snap = await fdb.collection('users').limit(1).get();
-  if(!snap.empty) return { ok:false, error:'An admin account already exists.' };
+  if(await hasAnyAccounts()) return { ok:false, error:'An admin account already exists.' };
   try{
     const cred = await auth.createUserWithEmailAndPassword(usernameToEmail_(username), password);
     await fdb.collection('users').doc(cred.user.uid).set({
       username, role:'admin', mustChangePassword:false, createdAt: firebase.firestore.FieldValue.serverTimestamp()
     });
+    await fdb.collection('meta').doc('status').set({ hasUsers:true });
     await fdb.collection('activityLog').add({ username, role:'admin', action:'Created the admin account (first-time setup)', details:'', createdAt: firebase.firestore.FieldValue.serverTimestamp() });
     return { ok:true };
   }catch(err){
