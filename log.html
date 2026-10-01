@@ -698,6 +698,10 @@ const firebaseConfig = {
 if(!firebase.apps.length) firebase.initializeApp(firebaseConfig);
 const auth = firebase.auth();
 const fdb = firebase.firestore();
+// Firebase needs a moment after a page load to restore the signed-in user
+// from the previous page — every Firestore call below waits for this first,
+// otherwise the rules see "not logged in yet" and reject the request.
+const authReady_ = new Promise(resolve => { const unsub = auth.onAuthStateChanged(u => { unsub(); resolve(u); }); });
 
 function cleanForFirestore_(headerObj){
   // Firestore rejects `undefined` values (empty strings are fine) — strip them.
@@ -1131,6 +1135,7 @@ async function nextControlNumber_(office, prefix, yearMonth, day){
 }
 
 async function saveComplaint(data){
+  await authReady_;
   const now = new Date();
   const yearMonth = `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}`;
   const day = String(now.getDate()).padStart(2,'0');
@@ -1147,6 +1152,7 @@ async function saveComplaint(data){
 }
 
 async function saveFieldResponse(controlNumber, data){
+  await authReady_;
   const snap = await fdb.collection('complaints')
     .where('office', '==', BRANCH.name)
     .where('Control Number', '==', controlNumber)
@@ -1156,6 +1162,7 @@ async function saveFieldResponse(controlNumber, data){
 }
 
 async function fetchRows(){
+  await authReady_;
   const snap = await fdb.collection('complaints')
     .where('office', '==', BRANCH.name)
     .orderBy('createdAt', 'asc')
