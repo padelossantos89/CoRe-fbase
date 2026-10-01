@@ -229,8 +229,8 @@ async function logActivity(username, role, action, details){
    any account belongs to, only whether the users collection is empty. */
 async function hasAnyAccounts(){
   try{
-    const snap = await fdb.collection('users').limit(1).get();
-    return !snap.empty;
+    const doc = await fdb.collection('meta').doc('status').get();
+    return !!(doc.exists && doc.data().hasUsers);
   }catch(err){ return true; } // fail closed: show the normal login form, not setup
 }
 
